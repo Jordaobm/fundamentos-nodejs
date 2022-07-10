@@ -5,44 +5,7 @@ const app = express();
 
 app.use(express.json());
 
-// name:string
-// cpf:string
-// id:string
-// statement: []
-
-let accounts = [
-  {
-    name: "Jordão 1",
-    cpf: "12345678900",
-    id: "cc4483d4-724e-4225-b930-6403a8495a92",
-    statement: [
-      {
-        id: "8f084503-ec2c-4566-bc30-74d6b691344c",
-        description: "Deposito 1",
-        amount: 100,
-        type: "DEPOSIT"
-      },
-      {
-        id: "e8a564fc-1450-48db-8bbf-d608d59d18ea",
-        description: "Deposito 2",
-        amount: 200,
-        type: "DEPOSIT"
-      },
-      {
-        id: "d5104e21-d4bf-427e-8ed4-7c30555c7dc6",
-        description: "Deposito 3",
-        amount: 300,
-        type: "DEPOSIT"
-      }
-    ]
-  },
-  {
-    name: "Jordão 2",
-    cpf: "12345678901",
-    id: "7dc27adf-33b7-4f11-8ca3-7cf7065a094a",
-    statement: []
-  }
-];
+let accounts = [];
 
 function haveBalance(account) {
   return account?.statement?.reduce((acc, statement) => {
@@ -180,7 +143,7 @@ app.put("/account", verifyIfExistsAccount, (req, res) => {
     return acc;
   });
 
-  return res?.status(204)?.json();
+  return res?.status(200)?.json(accounts?.find((e) => e?.cpf === account?.cpf));
 });
 
 app.listen(3333, () => {
