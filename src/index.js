@@ -5,56 +5,182 @@ const app = express();
 
 app.use(express.json());
 
-let repositories = [
+// name:string
+// cpf:string
+// id:string
+// statement: []
+
+let accounts = [
   {
-    id: String(uuid?.v4()),
-    name: "Fundamentos ReactJS"
+    name: "Jordão 1",
+    cpf: "12345678900",
+    id: "cc4483d4-724e-4225-b930-6403a8495a92",
+    statement: [
+      {
+        id: "8f084503-ec2c-4566-bc30-74d6b691344c",
+        description: "Deposito 1",
+        amount: 100,
+        type: "DEPOSIT"
+      },
+      {
+        id: "e8a564fc-1450-48db-8bbf-d608d59d18ea",
+        description: "Deposito 2",
+        amount: 200,
+        type: "DEPOSIT"
+      },
+      {
+        id: "d5104e21-d4bf-427e-8ed4-7c30555c7dc6",
+        description: "Deposito 3",
+        amount: 300,
+        type: "DEPOSIT"
+      }
+    ]
+  },
+  {
+    name: "Jordão 2",
+    cpf: "12345678901",
+    id: "7dc27adf-33b7-4f11-8ca3-7cf7065a094a",
+    statement: []
   }
 ];
 
-app.get("/repositories", (req, res) => {
-  return res?.status(200)?.json(repositories);
+function haveBalance(account) {
+  return account?.statement?.reduce((acc, statement) => {
+    if (statement?.type === "DEPOSIT") {
+      return (acc = acc + statement?.amount);
+    } else if (statement?.type === "WITHDRAW") {
+      return (acc = acc - statement?.amount);
+    }
+  }, 0);
+}
+
+function verifyIfExistsAccount(req, res, next) {
+  const account = accounts?.find((e) => e?.cpf === req?.headers?.cpf);
+
+  if (!account) {
+    return res?.status(400)?.json({
+      error: "Não há uma conta cadastrada"
+    });
+  }
+
+  req.account = account;
+
+  return next();
+}
+
+// Listando todas as contas
+app.get("/accounts", (req, res) => {
+  return res?.status(200)?.json(accounts);
 });
 
-app.post("/repositories", (req, res) => {
-  repositories?.push({
-    ...req?.body,
-    id: String(uuid?.v4())
+// Criando uma conta
+app.post("/account", (req, res) => {
+  const { cpf, name } = req?.body;
+
+  if (accounts?.some((e) => e?.cpf === cpf)) {
+    return res?.status(400)?.json({
+      error: "Uma conta já existe com este CPF"
+    });
+  }
+
+  accounts?.push({
+    name,
+    cpf,
+    id: String(uuid.v4()),
+    statement: []
   });
 
-  return res?.status(200)?.json(repositories);
+  return res?.status(201).json();
 });
 
-app.delete("/repository/:id", (req, res) => {
-  repositories = repositories?.filter(
-    (repository) => repository?.id !== req?.params?.id
-  );
-
-  return res?.status(200)?.json(repositories);
+// Buscando conta por CPF
+app.get("/account", verifyIfExistsAccount, (req, res) => {
+  return res?.status(200)?.json({
+    ...req?.account,
+    balance: haveBalance(req?.account)
+  });
 });
 
-app.put("/repository", (req, res) => {
-  repositories = repositories?.map((repository) => {
-    if (repository?.id === req?.body?.id) {
-      return req?.body;
+// Depositando em conta
+app.post("/deposit", verifyIfExistsAccount, (req, res) => {
+  const { account } = req;
+
+  const { description, amount } = req?.body;
+
+  accounts = accounts?.map((acc) => {
+    if (acc?.id === account?.id) {
+      // aqui
+
+      return {
+        ...acc,
+        statement: [
+          ...acc?.statement,
+          { id: uuid?.v4(), description, amount, type: "DEPOSIT" }
+        ]
+      };
+    } else {
+      return acc;
+    }
+  });
+  return res?.status(201)?.json();
+});
+
+// Sacando em conta
+app.post("/withdraw", verifyIfExistsAccount, (req, res) => {
+  const { account } = req;
+  const { amount } = req?.body;
+
+  const balance = haveBalance(account);
+
+  if (amount <= balance) {
+    // permitir
+
+    accounts = accounts?.map((acc) => {
+      if (acc?.cpf === account?.cpf) {
+        return {
+          ...acc,
+          statement: [
+            ...acc?.statement,
+            { id: uuid?.v4(), amount, type: "WITHDRAW" }
+          ]
+        };
+      }
+
+      return acc;
+    });
+  } else {
+    return res
+      ?.status(400)
+      ?.json({ error: "Não há saldo suficiente para o saque" });
+  }
+
+  return res?.status(204)?.json();
+});
+
+// Excluíndo conta
+app.delete("/account", verifyIfExistsAccount, (req, res) => {
+  const { account } = req;
+
+  accounts = accounts?.filter((acc) => acc?.cpf !== account?.cpf);
+
+  return res?.status(204)?.json();
+});
+
+// Atualizando conta
+app.put("/account", verifyIfExistsAccount, (req, res) => {
+  const { account } = req;
+
+  const { name } = req?.body;
+
+  accounts = accounts?.map((acc) => {
+    if (acc?.cpf === account?.cpf) {
+      return { ...acc, name };
     }
 
-    return repository;
+    return acc;
   });
 
-  return res?.status(200)?.json(repositories);
-});
-
-app.patch("/repository/:id", (req, res) => {
-  repositories = repositories?.map((repository) => {
-    if (repository?.id === req?.params?.id) {
-      return { ...repository, name: req?.body?.name };
-    }
-
-    return repository;
-  });
-
-  return res?.status(200)?.json(repositories);
+  return res?.status(204)?.json();
 });
 
 app.listen(3333, () => {
